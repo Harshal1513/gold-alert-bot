@@ -1,0 +1,41 @@
+name: XAUUSD Gold Alert Bot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes, UTC, best-effort (GitHub free tier)
+  workflow_dispatch:         # lets you click "Run workflow" manually to test
+
+permissions:
+  contents: write            # needed so the bot can save state.json back to the repo
+
+jobs:
+  check-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run alert bot
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python gold_alert_bot.py
+
+      - name: Save signal memory back to repo
+        run: |
+          git config user.name "gold-alert-bot"
+          git config user.email "actions@github.com"
+          git add state.json
+          git diff --quiet --cached || git commit -m "update state [skip ci]"
+          git push
+        continue-on-error: true
